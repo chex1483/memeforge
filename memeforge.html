@@ -400,9 +400,9 @@
     const mergeModalList = $('#mergeModalList');
     const mergeModalClose = $('#mergeModalClose');
 
-    function save() { localStorage.setItem('memeForge_v3', JSON.stringify(state)); }
+    function save() { localStorage.setItem('memeForge_final_v4', JSON.stringify(state)); }
     function load() {
-        const raw = localStorage.getItem('memeForge_v3');
+        const raw = localStorage.getItem('memeForge_final_v4');
         if (raw) {
             try {
                 const parsed = JSON.parse(raw);
@@ -536,33 +536,46 @@
         });
     }
 
+    function handleStarPurchase(itemKey) {
+        if (itemKey === 'booster') {
+            state.boosterEnd = Date.now() + 5 * 60 * 1000;
+            alert('⚡ Бустер активирован! x2 силы на 5 минут!');
+        } else if (itemKey === 'donate') {
+            alert('Ты крутой толчёк 🍾😈');
+        } else if (premiumMemes[itemKey]) {
+            const meta = premiumMemes[itemKey];
+            if (!state.inventory[meta.emoji]) state.inventory[meta.emoji] = 0;
+            state.inventory[meta.emoji]++;
+            state.power += meta.power;
+            alert(meta.name + ' в коллекции! Ты крутой толчёк 🍾😈');
+        }
+        updateUI();
+    }
+
         function buyStar(itemKey, price) {
         if (!tg) {
-            alert('Ошибка: Telegram API не загружен. Попробуй перезапустить игру.');
+            alert('Telegram API не загружен. Попробуй перезапустить игру.');
             return;
         }
-        const meta = premiumMemes[itemKey];
-        const title = meta ? meta.name : (itemKey === 'booster' ? 'Бустер x2' : itemKey);
-        tg.openInvoice({
-            title: title,
-            description: 'Покупка в MemeForge',
-            currency: 'XTR',
-            amount: price,
-            payload: itemKey,
-        }, (status) => {
-            if (status === 'paid') {
-                if (itemKey === 'booster') {
-                    state.boosterEnd = Date.now() + 5 * 60 * 1000;
-                    alert('Бустер активирован! x2 силы на 5 минут!');
-                } else if (meta) {
-                    if (!state.inventory[meta.emoji]) state.inventory[meta.emoji] = 0;
-                    state.inventory[meta.emoji]++;
-                    state.power += meta.power;
-                    alert(meta.name + ' в коллекции!');
+        if (tg.openInvoice) {
+            const meta = premiumMemes[itemKey];
+            const title = meta ? meta.name : (itemKey === 'booster' ? 'Бустер x2' : itemKey);
+            tg.openInvoice({
+                title: title,
+                description: 'Покупка в MemeForge',
+                currency: 'XTR',
+                amount: price,
+                payload: itemKey,
+            }, (status) => {
+                if (status === 'paid') {
+                    handleStarPurchase(itemKey);
                 }
-                updateUI();
-            }
-        });
+            });
+        } else if (tg.openTelegramLink) {
+            tg.openTelegramLink('https://t.me/MemeForgeGameBot?start=pay_' + itemKey + '_' + price);
+        } else {
+            alert('Не удалось открыть оплату. Попробуй обновить Telegram.');
+        }
     }
 
     $$('[data-star]').forEach(btn => {
@@ -575,18 +588,26 @@
 
     donateBtn.addEventListener('click', () => {
         if (!tg) {
-            alert('Ошибка: Telegram API не загружен. Попробуй перезапустить игру.');
+            alert('Telegram API не загружен. Попробуй перезапустить игру.');
             return;
         }
-        tg.openInvoice({
-            title: 'Поддержка MemeForge',
-            description: 'Спасибо за помощь в развитии игры!',
-            currency: 'XTR',
-            amount: 50,
-            payload: 'donate',
-        }, (status) => {
-            if (status === 'paid') alert('Ты крутой толчёк! ❤️');
-        });
+        if (tg.openInvoice) {
+            tg.openInvoice({
+                title: 'Донат',
+                description: 'Поддержка MemeForge',
+                currency: 'XTR',
+                amount: 50,
+                payload: 'donate',
+            }, (status) => {
+                if (status === 'paid') {
+                    handleStarPurchase('donate');
+                }
+            });
+        } else if (tg.openTelegramLink) {
+            tg.openTelegramLink('https://t.me/MemeForgeGameBot?start=donate');
+        } else {
+            alert('Не удалось открыть оплату. Попробуй обновить Telegram.');
+        }
     });
 
     function renderMergeSlots() {
