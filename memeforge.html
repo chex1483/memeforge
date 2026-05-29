@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>MemeForge: Эволюция мемов</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
             --bg: #0f0e17;
@@ -36,8 +35,6 @@
             align-items: center;
             gap: 14px;
         }
-
-        /* Загрузочный экран */
         #loadingScreen {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: var(--bg);
@@ -49,8 +46,6 @@
         .loader-emoji { font-size:80px; animation: bounce 0.6s infinite alternate; }
         @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-20px); } }
         .loader-text { margin-top:20px; font-size:20px; font-weight:bold; color:var(--gold); }
-
-        /* Верхняя панель */
         .top-bar {
             width: 100%;
             display: flex;
@@ -64,8 +59,6 @@
         }
         .stat { display:flex; align-items:center; gap:6px; }
         .stat-icon { font-size:20px; }
-
-        /* Экран кликера */
         .clicker-container {
             position: relative;
             width: 200px;
@@ -94,8 +87,6 @@
             transition: transform 0.08s;
         }
         #clickerEmoji:active { transform: scale(0.88); }
-
-        /* Всплывающие циферки */
         .float-text {
             position: absolute;
             pointer-events: none;
@@ -110,8 +101,6 @@
             50% { opacity:1; transform: translateY(-50px) scale(1.3); }
             100% { opacity:0; transform: translateY(-110px) scale(0.8); }
         }
-
-        /* Прогресс-бар опыта */
         .exp-wrap { width:100%; }
         .exp-label { display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px; }
         .exp-bar {
@@ -128,8 +117,6 @@
             border-radius:12px;
             transition: width 0.35s;
         }
-
-        /* Навигация */
         .nav {
             display:flex;
             width:100%;
@@ -153,8 +140,6 @@
             color: white;
             box-shadow: 0 0 18px rgba(255,107,107,0.6);
         }
-
-        /* Панели */
         .panel {
             width:100%;
             background: var(--card);
@@ -167,8 +152,6 @@
             gap: 14px;
         }
         .panel.active { display: flex; }
-
-        /* Кнопки */
         .btn {
             border: none;
             border-radius: 18px;
@@ -195,8 +178,6 @@
             background: linear-gradient(135deg, #ff6b6b, #ee5a24);
             color: white;
         }
-
-        /* Карточки */
         .card {
             background: rgba(255,255,255,0.04);
             border-radius: 16px;
@@ -209,8 +190,6 @@
         .card-info { flex:1; }
         .card-name { font-weight: bold; }
         .card-stat { font-size: 12px; color: var(--sub); }
-
-        /* Слоты слияния */
         .merge-area {
             display: flex;
             gap: 20px;
@@ -231,8 +210,6 @@
         }
         .merge-slot.filled { border-color: var(--gold); background: rgba(255,209,102,0.15); }
         .merge-arrow { font-size: 30px; color: var(--gold); }
-
-        /* Коллекция */
         .collection-grid {
             display: flex;
             flex-wrap: wrap;
@@ -255,8 +232,6 @@
         }
         .collection-emoji { font-size: 48px; }
         .collection-count { font-size: 13px; color: var(--sub); }
-
-        /* Модалка выбора мема для слияния */
         .modal-overlay {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: rgba(0,0,0,0.8);
@@ -374,12 +349,18 @@
 
 <script>
 (function(){
-    // ========== Telegram ==========
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
+    // Telegram WebApp (без ошибок если не в Telegram)
+    let tg = null;
+    try {
+        if (window.Telegram && window.Telegram.WebApp) {
+            tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+        }
+    } catch(e) {
+        tg = null;
+    }
 
-    // ========== Состояние ==========
     const DEFAULT = {
         coins: 0,
         power: 1,
@@ -388,7 +369,7 @@
         level: 1,
         mainEmoji: "🚽",
         inventory: { "🚽": 1 },
-        selectedSlot: null,  // 'slot1' или 'slot2'
+        selectedSlot: null,
         selectedMerge: { slot1: null, slot2: null },
         boosterEnd: 0,
     };
@@ -405,7 +386,6 @@
         cyber_cat:   { emoji:"🤖🐱", name:"Кибер-Кот", power:15, income:5 },
     };
 
-    // DOM
     const $ = (s) => document.querySelector(s);
     const $$ = (s) => document.querySelectorAll(s);
 
@@ -429,7 +409,6 @@
     const mergeModalList = $('#mergeModalList');
     const mergeModalClose = $('#mergeModalClose');
 
-    // ========== Загрузка/Сохранение ==========
     function save() { localStorage.setItem('memeForge_final', JSON.stringify(state)); }
     function load() {
         const raw = localStorage.getItem('memeForge_final');
@@ -442,7 +421,6 @@
         }
     }
 
-    // ========== Утилиты ==========
     function passiveIncome() {
         let total = 0;
         for (let [emoji, count] of Object.entries(state.inventory)) {
@@ -463,7 +441,6 @@
         return p;
     }
 
-    // ========== UI Update ==========
     function updateUI() {
         const pwr = getPower();
         coinsDisplay.textContent = Math.floor(state.coins);
@@ -480,12 +457,10 @@
         save();
     }
 
-    // ========== Кликер ==========
     clickerZone.addEventListener('click', (e) => {
         const pwr = getPower();
         state.coins += pwr;
         state.exp += pwr;
-        // левел-ап
         if (state.exp >= state.maxExp) {
             state.exp -= state.maxExp;
             state.level++;
@@ -493,7 +468,6 @@
             state.power += 2;
             spawnFloatText('⚡УРОВЕНЬ!', '#ff6b6b', 36);
         }
-        // всплывашка
         const rect = clickerZone.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -513,7 +487,6 @@
         setTimeout(() => el.remove(), 900);
     }
 
-    // Пассивный доход
     setInterval(() => {
         const inc = passiveIncome();
         if (inc > 0) {
@@ -527,7 +500,6 @@
         updateUI();
     });
 
-    // Бустер истекает
     setInterval(() => {
         if (state.boosterEnd && Date.now() > state.boosterEnd) {
             state.boosterEnd = 0;
@@ -535,7 +507,6 @@
         }
     }, 2000);
 
-    // ========== Навигация ==========
     $$('.nav-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             $$('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -547,7 +518,6 @@
         });
     });
 
-    // ========== Магазин ==========
     function buyMeme(id) {
         const item = memeShop.find(m => m.id === id);
         if (!item) return;
@@ -575,13 +545,16 @@
         });
     }
 
-            // Премиум за звёзды
-    function buyStar(itemKey, price) {
+     function buyStar(itemKey, price) {
+        if (!tg) {
+            alert('Оплата звёздами работает только в Telegram! Открой игру через бота.');
+            return;
+        }
         const meta = premiumMemes[itemKey];
         const title = meta ? meta.name : (itemKey === 'booster' ? 'Бустер x2' : itemKey);
         tg.openInvoice({
             title: title,
-            description: `Покупка в MemeForge`,
+            description: 'Покупка в MemeForge',
             currency: 'XTR',
             amount: price,
             payload: itemKey,
@@ -609,8 +582,11 @@
         });
     });
 
-    // Донат
     donateBtn.addEventListener('click', () => {
+        if (!tg) {
+            alert('Донат работает только в Telegram! Открой игру через бота.');
+            return;
+        }
         tg.openInvoice({
             title: 'Поддержка MemeForge',
             description: 'Спасибо за помощь в развитии игры!',
@@ -622,7 +598,6 @@
         });
     });
 
-    // ========== Слияние ==========
     function renderMergeSlots() {
         const s1 = state.selectedMerge.slot1;
         const s2 = state.selectedMerge.slot2;
@@ -674,7 +649,7 @@
             if (!state.inventory[evolved]) state.inventory[evolved] = 0;
             state.inventory[evolved]++;
             state.power += 5;
-            mergeResult.textContent = `🎉 Эволюция! ${s1} + ${s1} = ${evolved}`;
+            mergeResult.textContent = '🎉 Эволюция! ' + s1 + ' + ' + s1 + ' = ' + evolved;
             state.selectedMerge.slot1 = null;
             state.selectedMerge.slot2 = null;
             updateUI();
@@ -683,7 +658,6 @@
         }
     });
 
-    // ========== Коллекция ==========
     function renderCollection() {
         const items = Object.entries(state.inventory).filter(([_,c]) => c > 0);
         collectionGrid.innerHTML = items.map(([emoji, count]) => `
@@ -700,13 +674,25 @@
         });
     }
 
-    // ========== Старт ==========
+    // ========== ЗАПУСК ==========
     load();
     updateUI();
-    setTimeout(() => {
-        loadingScreen.style.opacity = '0';
-        setTimeout(() => loadingScreen.remove(), 500);
-    }, 1200);
+
+    // Убираем загрузочный экран
+    function hideLoading() {
+        if (loadingScreen && loadingScreen.parentNode) {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => {
+                if (loadingScreen && loadingScreen.parentNode) {
+                    loadingScreen.remove();
+                }
+            }, 500);
+        }
+    }
+
+    // Загрузочный экран исчезает через 1.5 секунды ВСЕГДА
+    setTimeout(hideLoading, 1500);
+
 })();
 </script>
 </body>
