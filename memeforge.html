@@ -265,33 +265,28 @@
 </head>
 <body>
 
-<!-- Загрузочный экран -->
 <div id="loadingScreen">
     <div class="loader-emoji">🚽</div>
     <div class="loader-text">MemeForge загружается...</div>
 </div>
 
 <div id="app">
-    <!-- Верхняя панель -->
     <div class="top-bar">
         <div class="stat"><span class="stat-icon">🪙</span> <span id="coinsDisplay">0</span></div>
         <div class="stat"><span class="stat-icon">💪</span> <span id="powerDisplay">1</span></div>
         <div class="stat"><span class="stat-icon">⭐</span> <span id="levelDisplay">1 ур.</span></div>
     </div>
 
-    <!-- Кликер -->
     <div class="clicker-container" id="clickerZone">
         <div class="clicker-glow"></div>
         <div id="clickerEmoji">🚽</div>
     </div>
 
-    <!-- Опыт -->
     <div class="exp-wrap">
         <div class="exp-label"><span>Опыт</span><span id="expText">0 / 100</span></div>
         <div class="exp-bar"><div class="exp-fill" id="expFill"></div></div>
     </div>
 
-    <!-- Навигация -->
     <div class="nav">
         <button class="nav-btn active" data-tab="clicker">🔨 Кликер</button>
         <button class="nav-btn" data-tab="shop">🛒 Магазин</button>
@@ -299,7 +294,6 @@
         <button class="nav-btn" data-tab="collection">📦 Коллекция</button>
     </div>
 
-    <!-- Панель Кликер -->
     <div class="panel active" id="panelClicker">
         <p style="text-align:center; color:var(--sub)">Тапай по Скибиди, собирай монеты!</p>
         <button class="btn btn-gold" id="collectIncomeBtn">💰 Собрать доход (0/сек)</button>
@@ -307,7 +301,6 @@
         <p style="text-align:center; font-size:12px; color:var(--sub)">Донаты помогают развивать игру!</p>
     </div>
 
-    <!-- Панель Магазин -->
     <div class="panel" id="panelShop">
         <h3 style="text-align:center">🏪 Магазин мемов</h3>
         <div id="shopItems"></div>
@@ -317,7 +310,6 @@
         <button class="btn btn-star" data-star="booster">⚡ Бустер x2 (5 мин) (50⭐)</button>
     </div>
 
-    <!-- Панель Слияние -->
     <div class="panel" id="panelMerge">
         <h3 style="text-align:center">🧬 Скрещивание мемов</h3>
         <p style="text-align:center; color:var(--sub)">Выбери два одинаковых мема</p>
@@ -330,7 +322,6 @@
         <p id="mergeResult" style="text-align:center; font-weight:bold;"></p>
     </div>
 
-    <!-- Панель Коллекция -->
     <div class="panel" id="panelCollection">
         <h3 style="text-align:center">📦 Твоя коллекция</h3>
         <p style="text-align:center; color:var(--sub)">Нажми на мема, чтобы сделать его главным</p>
@@ -338,7 +329,6 @@
     </div>
 </div>
 
-<!-- Модалка выбора мема для слияния -->
 <div id="mergeModal" class="modal-overlay hidden">
     <div class="modal">
         <h3>Выбери мем для слота</h3>
@@ -349,7 +339,7 @@
 
 <script>
 (function(){
-    // Telegram WebApp (без ошибок если не в Telegram)
+    // ========== Telegram WebApp ==========
     let tg = null;
     try {
         if (window.Telegram && window.Telegram.WebApp) {
@@ -361,6 +351,7 @@
         tg = null;
     }
 
+    // ========== Состояние ==========
     const DEFAULT = {
         coins: 0,
         power: 1,
@@ -409,9 +400,9 @@
     const mergeModalList = $('#mergeModalList');
     const mergeModalClose = $('#mergeModalClose');
 
-    function save() { localStorage.setItem('memeForge_final', JSON.stringify(state)); }
+    function save() { localStorage.setItem('memeForge_v2', JSON.stringify(state)); }
     function load() {
-        const raw = localStorage.getItem('memeForge_final');
+        const raw = localStorage.getItem('memeForge_v2');
         if (raw) {
             try {
                 const parsed = JSON.parse(raw);
@@ -450,7 +441,7 @@
         const percent = Math.min(100, Math.floor((state.exp / state.maxExp) * 100));
         expFill.style.width = percent + '%';
         expText.textContent = state.exp + ' / ' + state.maxExp;
-        collectIncomeBtn.textContent = `💰 Собрать доход (${passiveIncome().toFixed(1)}/сек)`;
+        collectIncomeBtn.textContent = '💰 Собрать доход (' + passiveIncome().toFixed(1) + '/сек)';
         renderShop();
         renderMergeSlots();
         renderCollection();
@@ -545,9 +536,14 @@
         });
     }
 
-     function buyStar(itemKey, price) {
-        if (!tg) {
-            alert('Оплата звёздами работает только в Telegram! Открой игру через бота.');
+        // Проверка: мы в Telegram?
+    function isInTelegram() {
+        return !!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openInvoice);
+    }
+
+    function buyStar(itemKey, price) {
+        if (!isInTelegram()) {
+            alert('Оплата звёздами работает только в Telegram! Открой игру через бота @MemeForgeGameBot');
             return;
         }
         const meta = premiumMemes[itemKey];
@@ -583,8 +579,8 @@
     });
 
     donateBtn.addEventListener('click', () => {
-        if (!tg) {
-            alert('Донат работает только в Telegram! Открой игру через бота.');
+        if (!isInTelegram()) {
+            alert('Донат работает только в Telegram! Открой игру через бота @MemeForgeGameBot');
             return;
         }
         tg.openInvoice({
@@ -594,7 +590,7 @@
             amount: 50,
             payload: 'donate',
         }, (status) => {
-            if (status === 'paid') alert('Огромное спасибо! ❤️');
+            if (status === 'paid') alert('Ты крутой толчёк! ❤️');
         });
     });
 
@@ -678,7 +674,6 @@
     load();
     updateUI();
 
-    // Убираем загрузочный экран
     function hideLoading() {
         if (loadingScreen && loadingScreen.parentNode) {
             loadingScreen.style.opacity = '0';
@@ -690,7 +685,6 @@
         }
     }
 
-    // Загрузочный экран исчезает через 1.5 секунды ВСЕГДА
     setTimeout(hideLoading, 1500);
 
 })();
