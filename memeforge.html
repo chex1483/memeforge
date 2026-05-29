@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MemeForge: Эволюция мемов</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: #0f0e17;
+            --card: #1a1a2e;
+            --accent: #ff6b6b;
+            --gold: #ffd166;
+            --star: #ffcc00;
+            --text: #fffffe;
+            --sub: #a7a9be;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+        body {
+            background: var(--bg);
+            font-family: 'Segoe UI', 'Comic Sans MS', cursive, sans-serif;
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at 50% 0%, #2d1b3a 0%, var(--bg) 70%);
+        }
+        #app {
+            width: 100%;
+            max-width: 430px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+
+        /* Загрузочный экран */
+        #loadingScreen {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: var(--bg);
+            display:flex; flex-direction:column;
+            justify-content:center; align-items:center;
+            z-index: 999;
+            transition: opacity 0.5s;
+        }
+        .loader-emoji { font-size:80px; animation: bounce 0.6s infinite alternate; }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-20px); } }
+        .loader-text { margin-top:20px; font-size:20px; font-weight:bold; color:var(--gold); }
+
+        /* Верхняя панель */
+        .top-bar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            background: var(--card);
+            border-radius: 20px;
+            padding: 14px 18px;
+            font-weight: bold;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .stat { display:flex; align-items:center; gap:6px; }
+        .stat-icon { font-size:20px; }
+
+        /* Экран кликера */
+        .clicker-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .clicker-glow {
+            position: absolute;
+            width: 180px; height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,107,107,0.25) 0%, transparent 70%);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.12); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 0.7; }
+        }
+        #clickerEmoji {
+            font-size: 120px;
+            cursor: pointer;
+            z-index: 2;
+            filter: drop-shadow(0 0 18px rgba(255,200,0,0.7));
+            transition: transform 0.08s;
+        }
+        #clickerEmoji:active { transform: scale(0.88); }
+
+        /* Всплывающие циферки */
+        .float-text {
+            position: absolute;
+            pointer-events: none;
+            font-weight: bold;
+            color: var(--gold);
+            font-size: 28px;
+            z-index: 10;
+            animation: floatUp 0.9s ease-out forwards;
+        }
+        @keyframes floatUp {
+            0% { opacity:1; transform: translateY(0) scale(0.5); }
+            50% { opacity:1; transform: translateY(-50px) scale(1.3); }
+            100% { opacity:0; transform: translateY(-110px) scale(0.8); }
+        }
+
+        /* Прогресс-бар опыта */
+        .exp-wrap { width:100%; }
+        .exp-label { display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px; }
+        .exp-bar {
+            width:100%; height:16px;
+            background:#2d2d44;
+            border-radius:12px;
+            overflow:hidden;
+            border:1px solid rgba(255,255,255,0.1);
+        }
+        .exp-fill {
+            height:100%;
+            width:0%;
+            background: linear-gradient(90deg, #f9c74f, #f9844a);
+            border-radius:12px;
+            transition: width 0.35s;
+        }
+
+        /* Навигация */
+        .nav {
+            display:flex;
+            width:100%;
+            gap:6px;
+        }
+        .nav-btn {
+            flex:1;
+            padding:10px 0;
+            border-radius:16px;
+            border:none;
+            background: var(--card);
+            color: var(--sub);
+            font-weight:bold;
+            font-size:13px;
+            cursor:pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .nav-btn.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 0 18px rgba(255,107,107,0.6);
+        }
+
+        /* Панели */
+        .panel {
+            width:100%;
+            background: var(--card);
+            border-radius: 24px;
+            padding: 18px;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.06);
+            display: none;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .panel.active { display: flex; }
+
+        /* Кнопки */
+        .btn {
+            border: none;
+            border-radius: 18px;
+            padding: 14px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .btn-gold { background: var(--gold); color: #1a1a2e; }
+        .btn-gold:active { background: #e6b800; transform: scale(0.97); }
+        .btn-star {
+            background: linear-gradient(135deg, #ffcc00, #ffaa00);
+            color: #1a1a2e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 16px;
+        }
+        .btn-star:active { transform: scale(0.97); }
+        .btn-donate {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+
+        /* Карточки */
+        .card {
+            background: rgba(255,255,255,0.04);
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-emoji { font-size: 44px; margin-right: 12px; }
+        .card-info { flex:1; }
+        .card-name { font-weight: bold; }
+        .card-stat { font-size: 12px; color: var(--sub); }
+
+        /* Слоты слияния */
+        .merge-area {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+        }
+        .merge-slot {
+            width: 90px; height: 90px;
+            border: 3px dashed rgba(255,255,255,0.4);
+            border-radius: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+            background: rgba(255,255,255,0.04);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .merge-slot.filled { border-color: var(--gold); background: rgba(255,209,102,0.15); }
+        .merge-arrow { font-size: 30px; color: var(--gold); }
+
+        /* Коллекция */
+        .collection-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        .collection-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 18px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            min-width: 80px;
+        }
+        .collection-item.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 16px rgba(255,107,107,0.5);
+        }
+        .collection-emoji { font-size: 48px; }
+        .collection-count { font-size: 13px; color: var(--sub); }
+
+        /* Модалка выбора мема для слияния */
+        .modal-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal {
+            background: var(--card);
+            border-radius: 24px;
+            padding: 20px;
+            width: 90%;
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .modal-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 14px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<!-- Загрузочный экран -->
+<div id="loadingScreen">
+    <div class="loader-emoji">🚽</div>
+    <div class="loader-text">MemeForge загружается...</div>
+</div>
+
+<div id="app">
+    <!-- Верхняя панель -->
+    <div class="top-bar">
+        <div class="stat"><span class="stat-icon">🪙</span> <span id="coinsDisplay">0</span></div>
+        <div class="stat"><span class="stat-icon">💪</span> <span id="powerDisplay">1</span></div>
+        <div class="stat"><span class="stat-icon">⭐</span> <span id="levelDisplay">1 ур.</span></div>
+    </div>
+
+    <!-- Кликер -->
+    <div class="clicker-container" id="clickerZone">
+        <div class="clicker-glow"></div>
+        <div id="clickerEmoji">🚽</div>
+    </div>
+
+    <!-- Опыт -->
+    <div class="exp-wrap">
+        <div class="exp-label"><span>Опыт</span><span id="expText">0 / 100</span></div>
+        <div class="exp-bar"><div class="exp-fill" id="expFill"></div></div>
+    </div>
+
+    <!-- Навигация -->
+    <div class="nav">
+        <button class="nav-btn active" data-tab="clicker">🔨 Кликер</button>
+        <button class="nav-btn" data-tab="shop">🛒 Магазин</button>
+        <button class="nav-btn" data-tab="merge">🧬 Слияние</button>
+        <button class="nav-btn" data-tab="collection">📦 Коллекция</button>
+    </div>
+
+    <!-- Панель Кликер -->
+    <div class="panel active" id="panelClicker">
+        <p style="text-align:center; color:var(--sub)">Тапай по Скибиди, собирай монеты!</p>
+        <button class="btn btn-gold" id="collectIncomeBtn">💰 Собрать доход (0/сек)</button>
+        <button class="btn btn-donate" id="donateBtn">❤️ Задонатить 50⭐</button>
+        <p style="text-align:center; font-size:12px; color:var(--sub)">Донаты помогают развивать игру!</p>
+    </div>
+
+    <!-- Панель Магазин -->
+    <div class="panel" id="panelShop">
+        <h3 style="text-align:center">🏪 Магазин мемов</h3>
+        <div id="shopItems"></div>
+        <h3 style="text-align:center; margin-top:10px; color:var(--star)">💎 Премиум за звёзды</h3>
+        <button class="btn btn-star" data-star="gold_toilet">🪙🚽 Золотой Туалет (100⭐)</button>
+        <button class="btn btn-star" data-star="cyber_cat">🤖🐱 Кибер-Кот (150⭐)</button>
+        <button class="btn btn-star" data-star="booster">⚡ Бустер x2 (5 мин) (50⭐)</button>
+    </div>
+
+    <!-- Панель Слияние -->
+    <div class="panel" id="panelMerge">
+        <h3 style="text-align:center">🧬 Скрещивание мемов</h3>
+        <p style="text-align:center; color:var(--sub)">Выбери два одинаковых мема</p>
+        <div class="merge-area">
+            <div class="merge-slot" id="slot1">❓</div>
+            <div class="merge-arrow">➡️</div>
+            <div class="merge-slot" id="slot2">❓</div>
+        </div>
+        <button class="btn btn-gold hidden" id="mergeBtn">⚡ Смешать!</button>
+        <p id="mergeResult" style="text-align:center; font-weight:bold;"></p>
+    </div>
+
+    <!-- Панель Коллекция -->
+    <div class="panel" id="panelCollection">
+        <h3 style="text-align:center">📦 Твоя коллекция</h3>
+        <p style="text-align:center; color:var(--sub)">Нажми на мема, чтобы сделать его главным</p>
+        <div class="collection-grid" id="collectionGrid"></div>
+    </div>
+</div>
+
+<!-- Модалка выбора мема для слияния -->
+<div id="mergeModal" class="modal-overlay hidden">
+    <div class="modal">
+        <h3>Выбери мем для слота</h3>
+        <div id="mergeModalList"></div>
+        <button class="btn btn-gold" id="mergeModalClose">Закрыть</button>
+    </div>
+</div>
+
+<script>
+(function(){
+    // ========== Telegram ==========
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    // ========== Состояние ==========
+    const DEFAULT = {
+        coins: 0,
+        power: 1,
+        exp: 0,
+        maxExp: 100,
+        level: 1,
+        mainEmoji: "🚽",
+        inventory: { "🚽": 1 },
+        selectedSlot: null,  // 'slot1' или 'slot2'
+        selectedMerge: { slot1: null, slot2: null },
+        boosterEnd: 0,
+    };
+    let state = JSON.parse(JSON.stringify(DEFAULT));
+
+    const memeShop = [
+        { id:"camera", emoji:"📷", name:"Камерамен", cost:50, income:0.5, power:1 },
+        { id:"speaker", emoji:"🔊", name:"Спикермен", cost:150, income:1, power:2 },
+        { id:"tvman", emoji:"📺", name:"ТВ-мен", cost:400, income:2, power:4 },
+        { id:"boss", emoji:"🪠", name:"Босс-унитаз", cost:1200, income:5, power:8 },
+    ];
+    const premiumMemes = {
+        gold_toilet: { emoji:"🪙🚽", name:"Золотой Туалет", power:10, income:3 },
+        cyber_cat:   { emoji:"🤖🐱", name:"Кибер-Кот", power:15, income:5 },
+    };
+
+    // DOM
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => document.querySelectorAll(s);
+
+    const loadingScreen = $('#loadingScreen');
+    const coinsDisplay = $('#coinsDisplay');
+    const powerDisplay = $('#powerDisplay');
+    const levelDisplay = $('#levelDisplay');
+    const clickerEmoji = $('#clickerEmoji');
+    const clickerZone = $('#clickerZone');
+    const expFill = $('#expFill');
+    const expText = $('#expText');
+    const collectIncomeBtn = $('#collectIncomeBtn');
+    const donateBtn = $('#donateBtn');
+    const shopItemsDiv = $('#shopItems');
+    const slot1 = $('#slot1');
+    const slot2 = $('#slot2');
+    const mergeBtn = $('#mergeBtn');
+    const mergeResult = $('#mergeResult');
+    const collectionGrid = $('#collectionGrid');
+    const mergeModal = $('#mergeModal');
+    const mergeModalList = $('#mergeModalList');
+    const mergeModalClose = $('#mergeModalClose');
+
+    // ========== Загрузка/Сохранение ==========
+    function save() { localStorage.setItem('memeForge_final', JSON.stringify(state)); }
+    function load() {
+        const raw = localStorage.getItem('memeForge_final');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                state = { ...DEFAULT, ...parsed };
+                if (!state.inventory[state.mainEmoji]) state.mainEmoji = "🚽";
+            } catch(e){}
+        }
+    }
+
+    // ========== Утилиты ==========
+    function passiveIncome() {
+        let total = 0;
+        for (let [emoji, count] of Object.entries(state.inventory)) {
+            let shop = memeShop.find(m => m.emoji === emoji);
+            if (shop) total += shop.income * count;
+            else {
+                for (let k in premiumMemes) {
+                    if (premiumMemes[k].emoji === emoji) total += premiumMemes[k].income * count;
+                }
+            }
+        }
+        return total;
+    }
+
+    function getPower() {
+        let p = state.power;
+        if (Date.now() < state.boosterEnd) p *= 2;
+        return p;
+    }
+
+    // ========== UI Update ==========
+    function updateUI() {
+        const pwr = getPower();
+        coinsDisplay.textContent = Math.floor(state.coins);
+        powerDisplay.textContent = pwr;
+        levelDisplay.textContent = state.level + ' ур.';
+        clickerEmoji.textContent = state.mainEmoji;
+        const percent = Math.min(100, Math.floor((state.exp / state.maxExp) * 100));
+        expFill.style.width = percent + '%';
+        expText.textContent = state.exp + ' / ' + state.maxExp;
+        collectIncomeBtn.textContent = `💰 Собрать доход (${passiveIncome().toFixed(1)}/сек)`;
+        renderShop();
+        renderMergeSlots();
+        renderCollection();
+        save();
+    }
+
+    // ========== Кликер ==========
+    clickerZone.addEventListener('click', (e) => {
+        const pwr = getPower();
+        state.coins += pwr;
+        state.exp += pwr;
+        // левел-ап
+        if (state.exp >= state.maxExp) {
+            state.exp -= state.maxExp;
+            state.level++;
+            state.maxExp = Math.floor(state.maxExp * 1.3);
+            state.power += 2;
+            spawnFloatText('⚡УРОВЕНЬ!', '#ff6b6b', 36);
+        }
+        // всплывашка
+        const rect = clickerZone.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        spawnFloatText('+'+pwr, '#ffd166', 26, x, y);
+        updateUI();
+    });
+
+    function spawnFloatText(text, color, size, x, y) {
+        const el = document.createElement('div');
+        el.className = 'float-text';
+        el.textContent = text;
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        el.style.color = color;
+        el.style.fontSize = size + 'px';
+        clickerZone.appendChild(el);
+        setTimeout(() => el.remove(), 900);
+    }
+
+    // Пассивный доход
+    setInterval(() => {
+        const inc = passiveIncome();
+        if (inc > 0) {
+            state.coins += inc;
+            updateUI();
+        }
+    }, 1000);
+
+    collectIncomeBtn.addEventListener('click', () => {
+        state.coins += passiveIncome();
+        updateUI();
+    });
+
+    // Бустер истекает
+    setInterval(() => {
+        if (state.boosterEnd && Date.now() > state.boosterEnd) {
+            state.boosterEnd = 0;
+            updateUI();
+        }
+    }, 2000);
+
+    // ========== Навигация ==========
+    $$('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            $$('.nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = btn.dataset.tab;
+            $$('.panel').forEach(p => p.classList.remove('active'));
+            $('#panel'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+            updateUI();
+        });
+    });
+
+    // ========== Магазин ==========
+    function buyMeme(id) {
+        const item = memeShop.find(m => m.id === id);
+        if (!item) return;
+        if (state.coins < item.cost) { alert('Недостаточно монет!'); return; }
+        state.coins -= item.cost;
+        if (!state.inventory[item.emoji]) state.inventory[item.emoji] = 0;
+        state.inventory[item.emoji]++;
+        state.power += item.power;
+        updateUI();
+    }
+
+    function renderShop() {
+        shopItemsDiv.innerHTML = memeShop.map(item => `
+            <div class="card">
+                <div class="card-emoji">${item.emoji}</div>
+                <div class="card-info">
+                    <div class="card-name">${item.name}</div>
+                    <div class="card-stat">+${item.income}/сек | +${item.power} силы</div>
+                </div>
+                <button class="btn btn-gold" style="width:auto; padding:8px 14px;" data-buy="${item.id}">${item.cost} 🪙</button>
+            </div>
+        `).join('');
+        $$('[data-buy]').forEach(btn => {
+            btn.addEventListener('click', (e) => buyMeme(e.currentTarget.dataset.buy));
+        });
+    }
+
+            // Премиум за звёзды
+    function buyStar(itemKey, price) {
+        const meta = premiumMemes[itemKey];
+        const title = meta ? meta.name : (itemKey === 'booster' ? 'Бустер x2' : itemKey);
+        tg.openInvoice({
+            title: title,
+            description: `Покупка в MemeForge`,
+            currency: 'XTR',
+            amount: price,
+            payload: itemKey,
+        }, (status) => {
+            if (status === 'paid') {
+                if (itemKey === 'booster') {
+                    state.boosterEnd = Date.now() + 5 * 60 * 1000;
+                    alert('Бустер активирован! x2 силы на 5 минут!');
+                } else if (meta) {
+                    if (!state.inventory[meta.emoji]) state.inventory[meta.emoji] = 0;
+                    state.inventory[meta.emoji]++;
+                    state.power += meta.power;
+                    alert(meta.name + ' в коллекции!');
+                }
+                updateUI();
+            }
+        });
+    }
+
+    $$('[data-star]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const key = btn.dataset.star;
+            const prices = { gold_toilet:100, cyber_cat:150, booster:50 };
+            buyStar(key, prices[key]);
+        });
+    });
+
+    // Донат
+    donateBtn.addEventListener('click', () => {
+        tg.openInvoice({
+            title: 'Поддержка MemeForge',
+            description: 'Спасибо за помощь в развитии игры!',
+            currency: 'XTR',
+            amount: 50,
+            payload: 'donate',
+        }, (status) => {
+            if (status === 'paid') alert('Огромное спасибо! ❤️');
+        });
+    });
+
+    // ========== Слияние ==========
+    function renderMergeSlots() {
+        const s1 = state.selectedMerge.slot1;
+        const s2 = state.selectedMerge.slot2;
+        slot1.textContent = s1 || '❓';
+        slot2.textContent = s2 || '❓';
+        if (s1) slot1.classList.add('filled'); else slot1.classList.remove('filled');
+        if (s2) slot2.classList.add('filled'); else slot2.classList.remove('filled');
+        if (s1 && s2) mergeBtn.classList.remove('hidden');
+        else mergeBtn.classList.add('hidden');
+    }
+
+    function showMergeModal(slotName) {
+        state.selectedSlot = slotName;
+        const available = Object.entries(state.inventory)
+            .filter(([emoji, count]) => count >= 2)
+            .map(([emoji, count]) => ({ emoji, count }));
+        if (available.length === 0) {
+            alert('Нет мемов, которых больше одного! Купи больше копий.');
+            return;
+        }
+        mergeModalList.innerHTML = available.map(a => `
+            <div class="modal-item" data-emoji="${a.emoji}">
+                <span style="font-size:36px">${a.emoji}</span>
+                <span>x${a.count}</span>
+            </div>
+        `).join('');
+        mergeModal.classList.remove('hidden');
+        $$('.modal-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const emoji = el.dataset.emoji;
+                state.selectedMerge[state.selectedSlot] = emoji;
+                state.selectedSlot = null;
+                mergeModal.classList.add('hidden');
+                updateUI();
+            });
+        });
+    }
+
+    slot1.addEventListener('click', () => showMergeModal('slot1'));
+    slot2.addEventListener('click', () => showMergeModal('slot2'));
+    mergeModalClose.addEventListener('click', () => { mergeModal.classList.add('hidden'); state.selectedSlot=null; });
+
+    mergeBtn.addEventListener('click', () => {
+        const s1 = state.selectedMerge.slot1;
+        const s2 = state.selectedMerge.slot2;
+        if (s1 && s2 && s1 === s2 && state.inventory[s1] >= 2) {
+            state.inventory[s1] -= 2;
+            const evolved = s1 + "⚡";
+            if (!state.inventory[evolved]) state.inventory[evolved] = 0;
+            state.inventory[evolved]++;
+            state.power += 5;
+            mergeResult.textContent = `🎉 Эволюция! ${s1} + ${s1} = ${evolved}`;
+            state.selectedMerge.slot1 = null;
+            state.selectedMerge.slot2 = null;
+            updateUI();
+        } else {
+            alert('Нужны два одинаковых мема с >=2 копиями!');
+        }
+    });
+
+    // ========== Коллекция ==========
+    function renderCollection() {
+        const items = Object.entries(state.inventory).filter(([_,c]) => c > 0);
+        collectionGrid.innerHTML = items.map(([emoji, count]) => `
+            <div class="collection-item ${emoji === state.mainEmoji ? 'selected' : ''}" data-emoji="${emoji}">
+                <div class="collection-emoji">${emoji}</div>
+                <div class="collection-count">x${count}</div>
+            </div>
+        `).join('');
+        $$('.collection-item').forEach(el => {
+            el.addEventListener('click', () => {
+                state.mainEmoji = el.dataset.emoji;
+                updateUI();
+            });
+        });
+    }
+
+    // ========== Старт ==========
+    load();
+    updateUI();
+    setTimeout(() => {
+        loadingScreen.style.opacity = '0';
+        setTimeout(() => loadingScreen.remove(), 500);
+    }, 1200);
+})();
+</script>
+</body>
+</html>
+```
