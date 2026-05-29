@@ -400,9 +400,9 @@
     const mergeModalList = $('#mergeModalList');
     const mergeModalClose = $('#mergeModalClose');
 
-    function save() { localStorage.setItem('memeForge_v2', JSON.stringify(state)); }
+    function save() { localStorage.setItem('memeForge_v3', JSON.stringify(state)); }
     function load() {
-        const raw = localStorage.getItem('memeForge_v2');
+        const raw = localStorage.getItem('memeForge_v3');
         if (raw) {
             try {
                 const parsed = JSON.parse(raw);
@@ -536,14 +536,9 @@
         });
     }
 
-        // Проверка: мы в Telegram?
-    function isInTelegram() {
-        return !!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openInvoice);
-    }
-
-    function buyStar(itemKey, price) {
-        if (!isInTelegram()) {
-            alert('Оплата звёздами работает только в Telegram! Открой игру через бота @MemeForgeGameBot');
+        function buyStar(itemKey, price) {
+        if (!tg) {
+            alert('Ошибка: Telegram API не загружен. Попробуй перезапустить игру.');
             return;
         }
         const meta = premiumMemes[itemKey];
@@ -579,8 +574,8 @@
     });
 
     donateBtn.addEventListener('click', () => {
-        if (!isInTelegram()) {
-            alert('Донат работает только в Telegram! Открой игру через бота @MemeForgeGameBot');
+        if (!tg) {
+            alert('Ошибка: Telegram API не загружен. Попробуй перезапустить игру.');
             return;
         }
         tg.openInvoice({
@@ -590,7 +585,7 @@
             amount: 50,
             payload: 'donate',
         }, (status) => {
-            if (status === 'paid') alert('Ты крутой толчёк! ❤️');
+            if (status === 'paid') alert('Огромное спасибо! ❤️');
         });
     });
 
